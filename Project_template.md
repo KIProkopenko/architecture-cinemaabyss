@@ -61,6 +61,8 @@ API Gateway будет выполнять роль единой точки вы�
 *   Interaction Service -> Kafka, Metadata Service
 *   Recommendation Service -> Kafka (Consumer для событий взаимодействия), Внешняя Рекомендательная Система
 
+ [ C4_Container](https://github.com/KIProkopenko/architecture-cinemaabyss/blob/cinema/C4_Container.puml)
+
     <img width="2423" height="1277" alt="jLTDRzj64xxhL-phosi3aNL8JpcbjeCqJOouaHEW9u6I6OMr90eavSGe2ZXstQPmKRT1Fueso0TwwP6IeqIsREKlxFwZFZDSck9wcTf02iGAEJixyypty6eOEK7KQxTA__CwZLPlpHKFegWRNgbK0kVXVDEB7lJglT0D6dudSZlHVCDlLxejfqDtoc6qrlBgbSMFoYj4khjygz9smiWDGAejqer7qNptFvFkU1qtIEIN8YzgkKA-aYFrM6" src="https://github.com/user-attachments/assets/6cc1d618-faef-4691-903a-a87cac37e88b" />
 
 
