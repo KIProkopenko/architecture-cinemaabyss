@@ -1,0 +1,66 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+title Система "Кинобездна" - Диаграмма контейнеров (To-Be)
+
+Person(customer_mobile, "Пользователь (Мобильное приложение)", "Пользователь сервиса, использующий мобильное приложение.")
+Person(customer_web, "Пользователь (Веб-браузер)", "Пользователь сервиса, использующий веб-браузер.")
+Person(customer_tv, "Пользователь (Smart TV)", "Пользователь сервиса, использующий приложение на Smart TV.")
+
+System_Boundary(cinema_abyss, "Система Кинобездна") {
+
+  Container(api_gateway, "API Gateway", "Kong / Traefik", "Единая точка входа. Маршрутизация, аутентификация, адаптация под клиент.")
+  Container(kafka_cluster, "Apache Kafka", "Message Broker", "Шина событий для асинхронного взаимодействия.")
+  ContainerDb(db_main, "PostgreSQL (Основная)", "Relational DB", "Пользователи, подписки, платежи, видео.")
+  ContainerDb(db_metadata, "PostgreSQL (Метаданные)", "Relational DB", "Жанры, актёры, описания, оценки.")
+  Container(user_service, "User Service", "Go", "Регистрация, аутентификация, профили.")
+  Container(subscription_service, "Subscription Service", "Go", "Управление подписками и правами доступа.")
+  Container(billing_service, "Billing Service", "Go", "Обработка платежей, интеграция с платёжными системами.")
+  Container(video_content_service, "Video Content Service", "Go", "Управление видео-контентом и потоками.")
+  Container(metadata_service, "Metadata Service", "Go", "CRUD метаданных о фильмах.")
+  Container(interaction_service, "Interaction Service", "Go", "Оценки, избранное, плейлисты.")
+  Container(recommendation_service, "Recommendation Service", "Go", "Интеграция с внешней рекомендательной системой.")
+  Container(object_storage, "Object Storage (S3/MinIO)", "Blob Storage", "Видеофайлы, обложки.")
+
+}
+
+System_Ext(ext_recommender, "Внешняя Рекомендательная Система", "Персонализированные подборки.")
+System_Ext(ext_payments, "Платёжные Системы", "Stripe, YooKassa и др.")
+System_Ext(ext_loyalty, "Системы Лояльности", "Программы бонусов и скидок.")
+
+' --- Связи ---
+Rel(customer_mobile, api_gateway, "HTTPS", "REST")
+Rel(customer_web, api_gateway, "HTTPS", "REST")
+Rel(customer_tv, api_gateway, "HTTPS", "REST")
+
+Rel(api_gateway, user_service, "HTTP", "Аутентификация")
+Rel(api_gateway, metadata_service, "HTTP", "Метаданные")
+Rel(api_gateway, video_content_service, "HTTP", "Видео")
+Rel(api_gateway, subscription_service, "HTTP", "Подписка")
+
+Rel(user_service, db_main, "JDBC", "CRUD пользователей")
+Rel(user_service, kafka_cluster, "Producer", "События: создание/обновление пользователя")
+
+Rel(subscription_service, db_main, "JDBC", "CRUD подписок")
+Rel(subscription_service, billing_service, "HTTP", "Проверка оплаты")
+Rel(subscription_service, kafka_cluster, "Producer", "События: изменение статуса подписки")
+
+Rel(billing_service, db_main, "JDBC", "CRUD платежей")
+Rel(billing_service, ext_payments, "HTTPS", "Оплата")
+Rel(billing_service, kafka_cluster, "Producer", "События: результат оплаты")
+
+Rel(video_content_service, db_main, "JDBC", "CRUD видео")
+Rel(video_content_service, object_storage, "S3 API", "Загрузка видео")
+Rel(video_content_service, kafka_cluster, "Producer", "События: добавление видео")
+
+Rel(metadata_service, db_metadata, "JDBC", "CRUD метаданных")
+Rel(metadata_service, kafka_cluster, "Producer/Consumer", "События: обновление метаданных")
+
+Rel(interaction_service, db_main, "JDBC", "CRUD взаимодействий")
+Rel(interaction_service, kafka_cluster, "Producer", "События: оценка, избранное")
+
+Rel(recommendation_service, kafka_cluster, "Consumer", "Потребляет события взаимодействия")
+Rel(recommendation_service, ext_recommender, "HTTPS", "Запрос подборок")
+
+@enduml
