@@ -158,7 +158,7 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: cinemaabyss
     ports:
-      - "5432:5432"092:9092"
+      - "5432:5432"
     environment:
       KAFKA_ADVERTISED_HOST_NAME: localhost
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
