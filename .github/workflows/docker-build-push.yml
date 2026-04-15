@@ -4,6 +4,13 @@ on:
   workflow_dispatch:
   push:
     branches: [ main, cinema ]
+    workflow_dispatch:            # ← добавили ручной запуск
+    inputs:
+      branch:
+        description: 'Branch to build'
+        required: true
+        default: 'cinema'
+        type: string
     paths:
       - 'src/**'
       - '.github/workflows/docker-build-push.yml'
