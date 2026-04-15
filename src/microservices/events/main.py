@@ -95,7 +95,7 @@ async def create_event(event_type: str, payload: EventRequest):
         raise HTTPException(status_code=500, detail="Failed to publish event")
 
     return {
-        "status": "event created",
+        "status": "success",
         "type": event_type,
         "data": payload.data
     }
