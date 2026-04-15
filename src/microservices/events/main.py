@@ -1,75 +1,82 @@
-import asyncio
-import json
-import logging
 import os
-import time
+import logging
 from datetime import datetime
 from typing import Dict, Any
 
 from aiokafka import AIOKafkaProducer, AIOKafkaConsumer
 from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel
+import json
+import asyncio
 
-app = FastAPI()
-
+# --- Настройка логирования ---
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-KAFKA_BROKER = os.getenv("KAFKA_BROKERS", "kafka:9092").split(",")
+# --- Конфигурация ---
+KAFKA_BROKERS = os.getenv("KAFKA_BROKERS", "kafka:9092").split(",")
 EVENT_TOPIC = os.getenv("EVENT_TOPIC", "events-topic")
+PORT = int(os.getenv("PORT", "8082"))
 
+app = FastAPI(title="Events Microservice", version="1.0")
+
+# Глобальный producer
 producer = None
 
-
-class EventData(BaseModel):
+class EventRequest(BaseModel):
     data: Dict[str, Any]
 
-
-@app.on_event('startup')
-async def startup_event():
+@app.on_event("startup")
+async def startup():
     global producer
     producer = AIOKafkaProducer(
-        bootstrap_servers=KAFKA_BROKER,
-        value_serializer=lambda x: json.dumps(x).encode('utf-8')
+        bootstrap_servers=KAFKA_BROKERS,
+        value_serializer=lambda v: json.dumps(v).encode("utf-8"),
     )
     await producer.start()
-    logger.info("✅ Kafka producer started")
+    logger.info(f"✅ Kafka producer started (topic: {EVENT_TOPIC})")
+
     # Запускаем consumer в фоне
     asyncio.create_task(consume_events())
 
-
-@app.on_event('shutdown')
-async def shutdown_event():
+@app.on_event("shutdown")
+async def shutdown():
     global producer
     if producer:
         await producer.stop()
-
+        logger.info("✅ Kafka producer stopped")
 
 async def consume_events():
     consumer = AIOKafkaConsumer(
         EVENT_TOPIC,
-        bootstrap_servers=KAFKA_BROKER,
-        value_deserializer=lambda x: json.loads(x.decode('utf-8')),
+        bootstrap_servers=KAFKA_BROKERS,
+        value_deserializer=lambda v: json.loads(v.decode("utf-8")),
         group_id="events-consumer-group",
+        auto_offset_reset="earliest",
     )
     await consumer.start()
     logger.info(f"🚀 Starting Kafka consumer for topic: {EVENT_TOPIC}")
     try:
         async for msg in consumer:
             try:
-                event_data = msg.value
+                event_data: dict = msg.value
+                event_type: str = event_data.get("type", "unknown")
+                event_payload = event_data.get("data", {})
                 logger.info(
-                    f"[CONSUMER] ✅ Received event: Type={event_data['type']} | "
-                    f"Time={event_data['timestamp']} | Data={event_data['data']}"
+                    f"[CONSUMER] ✅ Received event | type={event_type!r} | data={event_payload}"
                 )
             except Exception as e:
-                logger.error(f"[CONSUMER] ❌ Error processing message: {e}")
+                logger.error(f"[CONSUMER] ❌ Failed to process message: {e} | raw={msg.value}")
     finally:
         await consumer.stop()
 
-
-@app.post("/api/events/{event_type}")
-async def create_event(event_type: str, payload: EventData):
+@app.post("/api/events/{event_type}", status_code=201)
+async def create_event(event_type: str, payload: EventRequest):
+    """
+    Принимает: {"data": {"id": "...", "name": "..."}}
+    Отправляет в Kafka.
+    Возвращает: {"status": "success"} — как требуют тесты.
+    """
     event = {
         "type": event_type,
         "timestamp": datetime.utcnow().isoformat(),
@@ -78,16 +85,19 @@ async def create_event(event_type: str, payload: EventData):
 
     try:
         await producer.send_and_wait(EVENT_TOPIC, event)
-        logger.info(f"[PRODUCER] 📤 Sent event: Type={event_type} | Data={payload.data}")
+        logger.info(f"[PRODUCER] 📤 Sent event: type={event_type}, data={payload.data}")
     except Exception as e:
         logger.error(f"[PRODUCER] ❌ Failed to send event: {e}")
         raise HTTPException(status_code=500, detail="Failed to publish event")
 
-    return {"status": "event created", "type": event_type, "data": payload.data}
+    # ✅ ЕДИНЫЙ ФОРМАТ — как ожидают Postman-тесты:
+    return {"status": "success"}
 
+@app.get("/api/events/health")
+async def health():
+    return {"status": "ok"}
 
 if __name__ == "__main__":
     import uvicorn
-    port = int(os.getenv("PORT", "8082"))
-    logger.info(f"✅ Events service started on port {port}")
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    logger.info(f"✅ Events service started on port {PORT}")
+    uvicorn.run(app, host="0.0.0.0", port=PORT)
