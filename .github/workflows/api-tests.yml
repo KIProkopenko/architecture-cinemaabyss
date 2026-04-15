@@ -2,9 +2,9 @@ name: API Tests
 
 on:
   push:
-    branches: [ main, master, cinema ]
+    branches: [ main, cinema ]
   pull_request:
-    branches: [ main, master, cinema]
+    branches: [ main, cinema ]
   workflow_dispatch:
     inputs:
       environment:
@@ -24,7 +24,6 @@ jobs:
   api-tests:
     name: Run API Tests
     runs-on: ubuntu-latest
-    
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
