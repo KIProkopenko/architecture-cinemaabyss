@@ -143,9 +143,8 @@ jobs:
           sudo apt-get install -y docker-compose-plugin
           echo "Docker Compose installed"
 
-      - name: Start services for API tests (monolith, movies, events, kafka, zookeeper, proxy)
+      - name: Start services for API tests
         run: |
-          # Создадим временный docker-compose.yml для тестов (без зависимостей от внешних сервисов)
           cat > docker-compose.test.yml << 'EOF'
 version: '3.8'
 services:
@@ -220,16 +219,13 @@ services:
 volumes:
   pgdata:
 EOF
-          # Запустим только необходимые сервисы для тестов
           docker-compose -f docker-compose.test.yml up -d postgres kafka zookeeper monolith movies-service events-service proxy-service
-          sleep 30  # Ждём старт всех сервисов
+          sleep 30
 
       - name: Run API Tests with Newman
         run: |
           cd tests/postman
           npm ci
-          # Запускаем тесты против локального proxy-service (localhost:8000)
-          # Используем --insecure, т.к. в CI нет HTTPS
           npx newman run cinemaabyss.postman_collection.json \
             --environment ./environments/local.json \
             --reporters cli,json \
