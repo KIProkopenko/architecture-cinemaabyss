@@ -1,3 +1,4 @@
+---
 name: Docker Build and Push
 
 on:
@@ -44,7 +45,6 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # --- Monolith ---
       - name: Extract metadata for Monolith
         id: meta-monolith
         uses: docker/metadata-action@v4
@@ -67,7 +67,6 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # --- Movies Service ---
       - name: Extract metadata for Movies Service
         id: meta-movies
         uses: docker/metadata-action@v4
@@ -90,7 +89,6 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # --- Proxy Service ---
       - name: Extract metadata for Proxy Service
         id: meta-proxy
         uses: docker/metadata-action@v4
@@ -113,7 +111,6 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # --- Events Service ---
       - name: Extract metadata for Events Service
         id: meta-events
         uses: docker/metadata-action@v4
@@ -136,14 +133,12 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # --- Run API Tests (locally, using docker-compose) ---
-      - name: Setup Docker Compose environment
+      - name: Setup Docker Compose
         run: |
           sudo apt-get update
           sudo apt-get install -y docker-compose-plugin
-          echo "Docker Compose installed"
 
-      - name: Start services for API tests
+      - name: Start test services
         run: |
           cat > docker-compose.test.yml << 'EOF'
 version: '3.8'
@@ -222,20 +217,19 @@ EOF
           docker-compose -f docker-compose.test.yml up -d postgres kafka zookeeper monolith movies-service events-service proxy-service
           sleep 30
 
-      - name: Run API Tests with Newman
+      - name: Run API Tests
         run: |
           cd tests/postman
           npm ci
           npx newman run cinemaabyss.postman_collection.json \
             --environment ./environments/local.json \
-            --reporters cli,json \
             --folder "Events Microservice" \
             --folder "Proxy Service" \
             --folder "Movies Service" \
             --timeout-request 10000 \
             --delay-request 200
 
-      - name: Cleanup test containers
+      - name: Cleanup
         if: always()
         run: |
           docker-compose -f docker-compose.test.yml down -v
