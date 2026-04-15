@@ -1,7 +1,7 @@
 name: Docker Build and Push
 
 on:
-  workflow_dispatch:             # ← Ручной запуск (отдельно)
+  workflow_dispatch:
     inputs:
       branch:
         description: 'Branch to build'
@@ -9,7 +9,7 @@ on:
         default: 'cinema'
         type: string
   push:
-    branches: [ main, cinema ]   # ← Автоматический запуск при пуше в main или cinema
+    branches: [main, cinema]
     paths:
       - 'src/**'
       - '.github/workflows/docker-build-push.yml'
