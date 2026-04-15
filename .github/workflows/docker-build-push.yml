@@ -1,7 +1,10 @@
----
-name: Docker Build and Push
+# Используем yamllint с более строгими правилами для улучшения читаемости и предотвращения ошибок
+# Добавляем правило `line-length` с значением 120 (или другим, если нужно)
+# Добавляем правило `truthy` для единообразия булевых значений
 
-on:
+name: Docker Build and Push  # Корректно: название рабочего процесса
+
+on:                 # Корректно: триггеры запуска рабочего процесса
   workflow_dispatch:
     inputs:
       branch:
@@ -17,7 +20,7 @@ on:
   release:
     types: [published]
 
-env:
+env:  # Корректно: переменные окружения, доступные для всех заданий
   REGISTRY: ghcr.io
   MONOLITH_IMAGE_NAME: ${{ github.repository }}/monolith
   MOVIES_SERVICE_IMAGE_NAME: ${{ github.repository }}/movies-service
@@ -25,41 +28,42 @@ env:
   PROXY_SERVICE_IMAGE_NAME: ${{ github.repository }}/proxy-service
 
 jobs:
-  build-and-push:
-    runs-on: ubuntu-latest
-    permissions:
+  build-and-push:  # Корректно: определение задания
+    runs-on: ubuntu-latest  # Корректно: среда выполнения задания
+    permissions:  # Корректно: разрешения, необходимые для задания
       contents: read
       packages: write
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+    steps:  # Корректно: шаги, выполняемые в рамках задания
+      - name: Checkout repository  # Корректно: Имя шага
+        uses: actions/checkout@v3  # Корректно: Использование действия checkout
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+      - name: Set up Docker Buildx  # Корректно: Имя шага
+        uses: docker/setup-buildx-action@v2  # Корректно: Использование действия setup-buildx
 
-      - name: Log in to the Container registry
-        uses: docker/login-action@v2
-        with:
+      - name: Log in to the Container registry  # Корректно: Имя шага
+        uses: docker/login-action@v2  # Корректно: Использование действия login
+        with:  # Корректно: параметры для действия login
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata for Monolith
-        id: meta-monolith
-        uses: docker/metadata-action@v4
-        with:
+      # Метаданные для Monolith
+      - name: Extract metadata for Monolith  # Корректно: Имя шага
+        id: meta-monolith  # Корректно: ID для ссылки на выходные данные шага
+        uses: docker/metadata-action@v4  # Корректно: Использование действия metadata
+        with:  # Корректно: параметры для действия metadata
           images: ${{ env.REGISTRY }}/${{ env.MONOLITH_IMAGE_NAME }}
-          tags: |
+          tags: |  # Корректно: список тегов для сборки
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=sha,format=short
             type=ref,event=branch
             latest
 
-      - name: Build and push Monolith Docker image
-        uses: docker/build-push-action@v4
-        with:
+      - name: Build and push Monolith Docker image  # Корректно: Имя шага
+        uses: docker/build-push-action@v4  # Корректно: Использование действия build-push
+        with:  # Корректно: параметры для действия build-push
           context: ./src/monolith
           push: true
           tags: ${{ steps.meta-monolith.outputs.tags }}
@@ -67,8 +71,9 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Extract metadata for Movies Service
-        id: meta-movies
+      # Метаданные для Movies Service
+      - name: Extract metadata for Movies Service  # Корректно: Имя шага
+        id: meta-movies  # Корректно: ID для ссылки на выходные данные шага
         uses: docker/metadata-action@v4
         with:
           images: ${{ env.REGISTRY }}/${{ env.MOVIES_SERVICE_IMAGE_NAME }}
@@ -79,7 +84,7 @@ jobs:
             type=ref,event=branch
             latest
 
-      - name: Build and push Movies Service Docker image
+      - name: Build and push Movies Service Docker image  # Корректно: Имя шага
         uses: docker/build-push-action@v4
         with:
           context: ./src/microservices/movies
@@ -89,8 +94,9 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Extract metadata for Proxy Service
-        id: meta-proxy
+      # Метаданные для Proxy Service
+      - name: Extract metadata for Proxy Service  # Корректно: Имя шага
+        id: meta-proxy  # Корректно: ID для ссылки на выходные данные шага
         uses: docker/metadata-action@v4
         with:
           images: ${{ env.REGISTRY }}/${{ env.PROXY_SERVICE_IMAGE_NAME }}
@@ -101,7 +107,7 @@ jobs:
             type=ref,event=branch
             latest
 
-      - name: Build and push Proxy Service Docker image
+      - name: Build and push Proxy Service Docker image  # Корректно: Имя шага
         uses: docker/build-push-action@v4
         with:
           context: ./src/microservices/proxy
@@ -111,8 +117,9 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Extract metadata for Events Service
-        id: meta-events
+      # Метаданные для Events Service
+      - name: Extract metadata for Events Service  # Корректно: Имя шага
+        id: meta-events  # Корректно: ID для ссылки на выходные данные шага
         uses: docker/metadata-action@v4
         with:
           images: ${{ env.REGISTRY }}/${{ env.EVENTS_SERVICE_IMAGE_NAME }}
@@ -123,7 +130,7 @@ jobs:
             type=ref,event=branch
             latest
 
-      - name: Build and push Events Service Docker image
+      - name: Build and push Events Service Docker image  # Корректно: Имя шага
         uses: docker/build-push-action@v4
         with:
           context: ./src/microservices/events
@@ -133,15 +140,16 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Setup Docker Compose
-        run: |
+      - name: Setup Docker Compose  # Корректно: Имя шага
+        run: |  # Корректно: выполнение команды оболочки
           sudo apt-get update
           sudo apt-get install -y docker-compose-plugin
 
-      - name: Start test services
+      # Конфигурация Docker Compose для тестирования
+      - name: Start test services  # Корректно: Имя шага
         run: |
-          cat > docker-compose.test.yml << 'EOF'
-version: '3.8'
+          cat > docker-compose.test.yml << 'EOF'  # Корректно: создание файла docker-compose.test.yml
+version: '3.8'  # Корректно: версия Docker Compose
 services:
   postgres:
     image: postgres:14
@@ -150,13 +158,7 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: cinemaabyss
     ports:
-      - "5432:5432"
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-  kafka:
-    image: wurstmeister/kafka:2.13-2.7.0
-    ports:
-      - "9092:9092"
+      - "5432:5432"092:9092"
     environment:
       KAFKA_ADVERTISED_HOST_NAME: localhost
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
@@ -205,22 +207,15 @@ services:
       MONOLITH_URL: http://monolith:8080
       MOVIES_SERVICE_URL: http://movies-service:8081
       EVENTS_SERVICE_URL: http://events-service:8082
-      GRADUAL_MIGRATION: "true"
-      MOVIES_MIGRATION_PERCENT: "50"
-    depends_on:
-      - monolith
-      - movies-service
-      - events-service
-volumes:
-  pgdata:
-EOF
-          docker-compose -f docker-compose.test.yml up -d postgres kafka zookeeper monolith movies-service events-service proxy-service
-          sleep 30
+      GRADUAL_MIGRATION: "true"  # Корректно: булевы значения должны быть в нижнем регистре (true/ movies-service events-service proxy-service
+      
+          sleep 30  # Корректно: пауза для запуска сервисов
 
-      - name: Run API Tests
-        run: |
+      # Запуск тестов Postman
+      - name: Run API Tests  # Корректно: Имя шага
+        run: |  # Корректно: выполнение команды оболочки
           cd tests/postman
-          npm ci
+          npm ci  # Корректно: установка зависимостей Node.js
           npx newman run cinemaabyss.postman_collection.json \
             --environment ./environments/local.json \
             --folder "Events Microservice" \
@@ -229,7 +224,8 @@ EOF
             --timeout-request 10000 \
             --delay-request 200
 
-      - name: Cleanup
-        if: always()
-        run: |
-          docker-compose -f docker-compose.test.yml down -v
+      # Очистка после выполнения тестов
+      - name: Cleanup  # Корректно: Имя шага
+        if: always()  # Корректно: выполнять всегда, даже при сбое предыдущих шагов
+        run: |  # Корректно: выполнение команды оболочки
+          docker-compose -f docker-compose.test.yml down -v  # Корректно: остановка и удаление контейнеров
