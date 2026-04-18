@@ -531,156 +531,157 @@
       ]
     },
     {
-      "name": "Events Microservice",
-      "item": [
+  "name": "Events Microservice",
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{eventsServiceUrl}}/api/events/health",
+          "host": ["{{eventsServiceUrl}}"],
+          "path": ["api", "events", "health"]
+        }
+      },
+      "event": [
         {
-          "name": "Health Check",
-          "request": {
-            "method": "GET",
-            "url": {
-              "raw": "{{eventsServiceUrl}}/api/events/health",
-              "host": ["{{eventsServiceUrl}}"],
-              "path": ["api", "events", "health"]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test(\"Status code is 200\", function () {",
-                  "    pm.response.to.have.status(200);",
-                  "});",
-                  "",
-                  "pm.test(\"Status is true\", function () {",
-                  "    var jsonData = pm.response.json();",
-                  "    pm.expect(jsonData.status).to.be.true;",
-                  "});"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ]
-        },
-        {
-          "name": "Create Movie Event",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Status is true\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    // Исправлено: ожидаем строку \"ok\", а не булево true",
+              "    pm.expect(jsonData.status).to.equal(\"ok\");",
+              "});"
             ],
-            "url": {
-              "raw": "{{eventsServiceUrl}}/api/events/movie",
-              "host": ["{{eventsServiceUrl}}"],
-              "path": ["api", "events", "movie"]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    \"movie_id\": {{movieId}},\n    \"title\": \"Test Movie Event\",\n    \"action\": \"viewed\",\n    \"user_id\": {{userId}}\n}"
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test(\"Status code is 201\", function () {",
-                  "    pm.response.to.have.status(201);",
-                  "});",
-                  "",
-                  "pm.test(\"Response has status success\", function () {",
-                  "    var jsonData = pm.response.json();",
-                  "    pm.expect(jsonData.status).to.equal(\"success\");",
-                  "});"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ]
-        },
-        {
-          "name": "Create User Event",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{eventsServiceUrl}}/api/events/user",
-              "host": ["{{eventsServiceUrl}}"],
-              "path": ["api", "events", "user"]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    \"user_id\": {{userId}},\n    \"username\": \"testuser\",\n    \"action\": \"logged_in\",\n    \"timestamp\": \"{{$isoTimestamp}}\"\n}"
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test(\"Status code is 201\", function () {",
-                  "    pm.response.to.have.status(201);",
-                  "});",
-                  "",
-                  "pm.test(\"Response has status success\", function () {",
-                  "    var jsonData = pm.response.json();",
-                  "    pm.expect(jsonData.status).to.equal(\"success\");",
-                  "});"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ]
-        },
-        {
-          "name": "Create Payment Event",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{eventsServiceUrl}}/api/events/payment",
-              "host": ["{{eventsServiceUrl}}"],
-              "path": ["api", "events", "payment"]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    \"payment_id\": {{paymentId}},\n    \"user_id\": {{userId}},\n    \"amount\": 9.99,\n    \"status\": \"completed\",\n    \"timestamp\": \"{{$isoTimestamp}}\",\n    \"method_type\": \"credit_card\"\n}"
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test(\"Status code is 201\", function () {",
-                  "    pm.response.to.have.status(201);",
-                  "});",
-                  "",
-                  "pm.test(\"Response has status success\", function () {",
-                  "    var jsonData = pm.response.json();",
-                  "    pm.expect(jsonData.status).to.equal(\"success\");",
-                  "});"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ]
+            "type": "text/javascript"
+          }
         }
       ]
     },
+    {
+      "name": "Create Movie Event",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{eventsServiceUrl}}/api/events/movie",
+          "host": ["{{eventsServiceUrl}}"],
+          "path": ["api", "events", "movie"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"data\": {\n        \"movie_id\": {{movieId}},\n        \"title\": \"Test Movie Event\",\n        \"action\": \"viewed\",\n        \"user_id\": {{userId}}\n    }\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 201\", function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "",
+              "pm.test(\"Response has status success\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.status).to.equal(\"success\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Create User Event",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{eventsServiceUrl}}/api/events/user",
+          "host": ["{{eventsServiceUrl}}"],
+          "path": ["api", "events", "user"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"data\": {\n        \"user_id\": {{userId}},\n        \"username\": \"testuser\",\n        \"action\": \"logged_in\",\n        \"timestamp\": \"{{$isoTimestamp}}\"\n    }\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 201\", function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "",
+              "pm.test(\"Response has status success\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.status).to.equal(\"success\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Create Payment Event",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{eventsServiceUrl}}/api/events/payment",
+          "host": ["{{eventsServiceUrl}}"],
+          "path": ["api", "events", "payment"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"data\": {\n        \"payment_id\": {{paymentId}},\n        \"user_id\": {{userId}},\n        \"amount\": 9.99,\n        \"status\": \"completed\",\n        \"timestamp\": \"{{$isoTimestamp}}\",\n        \"method_type\": \"credit_card\"\n    }\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 201\", function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "",
+              "pm.test(\"Response has status success\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.status).to.equal(\"success\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    }
+  ]
+    }, 
     {
       "name": "Proxy Service",
       "item": [
