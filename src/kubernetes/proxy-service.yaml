@@ -22,7 +22,7 @@ spec:
     spec:
       containers:
       - name: proxy-service
-        image:  ghcr.io/KIProkopenko/architecture-cinemaabyss/proxy-service:latest
+        image:  ghcr.io/kiprokopenko/architecture-cinemaabyss/proxy-service:latest
         imagePullPolicy: Always
         ports:
         - containerPort: 8000
@@ -68,6 +68,6 @@ spec:
   selector:
     app: proxy-service
   ports:
-  - port: 8000
+  - port: 80
     targetPort: 8000
   type: ClusterIP
