@@ -22,7 +22,7 @@ spec:
     spec:
       containers:
       - name: proxy-service
-        image:  ghcr.io/kiprokopenko/architecture-cinemaabyss/proxy-service:latest
+        image: ghcr.io/kiprokopenko/architecture-cinemaabyss/proxy-service:latest
         imagePullPolicy: Always
         ports:
         - containerPort: 8000
@@ -45,17 +45,16 @@ spec:
             memory: "128Mi"
         readinessProbe:
           httpGet:
-            path: /api/users
+            path: /health
             port: 8000
           initialDelaySeconds: 5
           periodSeconds: 10
         livenessProbe:
           httpGet:
-            path: /api/users
+            path: /health
             port: 8000
           initialDelaySeconds: 15
           periodSeconds: 20
-      restartPolicy: Always
       imagePullSecrets:
         - name: dockerconfigjson
 ---
