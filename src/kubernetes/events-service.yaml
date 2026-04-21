@@ -1,12 +1,15 @@
+{{- if .Values.eventsService.enabled }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: events-service
-  namespace: cinemaabyss
+  namespace: {{ .Values.global.namespace }}
   labels:
     app: events-service
+    app.kubernetes.io/name: {{ include "cinemaabyss.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
 spec:
-  replicas: 1
+  replicas: {{ .Values.eventsService.replicas }}
   selector:
     matchLabels:
       app: events-service
@@ -21,40 +24,29 @@ spec:
         app: events-service
     spec:
       containers:
-      - name: events-service
-        image: ghcr.io/kiprokopenko/architecture-cinemaabyss/events-service:latest
-        imagePullPolicy: Always
-        ports:
-        - containerPort: 8082
-        env:
-        - name: PORT
-          value: "8082"
-        - name: DB_CONNECTION_STRING
-          value: "postgres://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=disable"
-        envFrom:
-        - configMapRef:
-            name: cinemaabyss-config
-        - secretRef:
-            name: cinemaabyss-secrets
-        resources:
-          limits:
-            cpu: "500m"
-            memory: "512Mi"
-          requests:
-            cpu: "100m"
-            memory: "128Mi"
-        readinessProbe:
-          httpGet:
-            path: /api/events/health
-            port: 8082
-          initialDelaySeconds: 5
-          periodSeconds: 10
-        livenessProbe:
-          httpGet:
-            path: /api/events/health
-            port: 8082
-          initialDelaySeconds: 15
-          periodSeconds: 20
+        - name: events-service
+          image: "{{ .Values.eventsService.image.repository }}:{{ .Values.eventsService.image.tag }}"
+          imagePullPolicy: {{ .Values.eventsService.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.eventsService.service.targetPort }}
+          env:
+            - name: PORT
+              value: "{{ .Values.eventsService.service.targetPort }}"
+            - name: KAFKA_BROKERS
+              value: "{{ .Values.config.kafkaBrokers }}"
+            - name: MOVIE_EVENTS_TOPIC
+              value: "{{ .Values.config.movieEventsTopic }}"
+            - name: PAYMENT_EVENTS_TOPIC
+              value: "{{ .Values.config.paymentEventsTopic }}"
+            - name: USER_EVENTS_TOPIC
+              value: "{{ .Values.config.userEventsTopic }}"
+          resources:
+            limits:
+              cpu: {{ .Values.eventsService.resources.limits.cpu }}
+              memory: {{ .Values.eventsService.resources.limits.memory }}
+            requests:
+              cpu: {{ .Values.eventsService.resources.requests.cpu }}
+              memory: {{ .Values.eventsService.resources.requests.memory }}
       imagePullSecrets:
         - name: dockerconfigjson
 ---
@@ -62,11 +54,17 @@ apiVersion: v1
 kind: Service
 metadata:
   name: events-service
-  namespace: cinemaabyss
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: events-service
+    app.kubernetes.io/name: {{ include "cinemaabyss.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
 spec:
   selector:
     app: events-service
   ports:
-  - port: 80
-    targetPort: 8082
-  type: ClusterIP
+    - protocol: TCP
+      port: {{ .Values.eventsService.service.port }}
+      targetPort: {{ .Values.eventsService.service.targetPort }}
+  type: {{ .Values.eventsService.service.type }}
+{{- end }}
