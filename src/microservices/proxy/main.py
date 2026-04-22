@@ -1,118 +1,70 @@
 import os
 import random
 import logging
-from typing import Dict, Any
-from fastapi import FastAPI, Request, HTTPException
-from fastapi.responses import Response
 import httpx
-from starlette.background import BackgroundTask
+from fastapi import FastAPI, Request, HTTPException
+from fastapi.responses import JSONResponse, PlainTextResponse
+from urllib.parse import urljoin
 
 app = FastAPI()
-
+httpx_client = httpx.AsyncClient()
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
-# --- Environment variables ---
-MONOLITH_URL = os.getenv("MONOLITH_URL", "http://monolith:8080").rstrip("/")
-MOVIES_SERVICE_URL = os.getenv("MOVIES_SERVICE_URL", "http://movies-service:8081").rstrip("/")
-GRADUAL_MIGRATION = os.getenv("GRADUAL_MIGRATION", "true").lower() == "true"
-MOVIES_MIGRATION_PERCENT = int(os.getenv("MOVIES_MIGRATION_PERCENT", "50"))
+async def httpx_request_to_target(request: Request, target_url: str):
+    url = urljoin(target_url, request.url.path)
+    body = await request.body()
+    try:
+        response = await httpx_client.request(
+            method=request.method,
+            url=url,
+            params=request.query_params,
+            content=body,
+            timeout=15
+        )
+        if response.headers.get("content-type", "").startswith("application/json"):
+            return JSONResponse(status_code=response.status_code, content=response.json())
+        else:
+            return PlainTextResponse(status_code=response.status_code, content=response.content)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"router exception: {str(e)}")
 
-def get_target_url() -> str:
-    if GRADUAL_MIGRATION:
-        if random.randint(1, 100) <= MOVIES_MIGRATION_PERCENT:
-            return MOVIES_SERVICE_URL
-    return MONOLITH_URL
+# Определяем префиксы для миграции
+route_env_prefix = {
+    "movies": "MOVIES",
+    "events": "EVENTS",
+    "users": "USERS",
+}
 
-@app.api_route("/api/movies/{full_path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"])
-async def proxy_movies(full_path: str, request: Request):
-    original_path = f"/api/movies/{full_path}"
-    target_base = get_target_url()
-    url = f"{target_base}{original_path}"
+@app.api_route("/api/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"])
+async def proxy(request: Request, path: str):
+    monolith_url = os.getenv('MONOLITH_URL', 'http://monolith:8080').rstrip('/')
+    
+    if path not in route_env_prefix:
+        # Неизвестный путь — всегда в монолит
+        return await httpx_request_to_target(request, monolith_url)
 
-    query_string = request.url.query
-    if query_string:
-        url += f"?{query_string}"
+    # Для известных префиксов — применяем миграцию
+    gradual_migration = os.getenv("GRADUAL_MIGRATION", "false").lower() == "true"
+    env_prefix = route_env_prefix[path]
+    service_url = os.getenv(f"{env_prefix}_SERVICE_URL")
 
-    logger.info(f"[PROXY] Routing {request.method} {original_path} → {target_base}")
+    migration_percentage = os.getenv(f"{env_prefix}_MIGRATION_PERCENT", "0")
+    if not migration_percentage.isdigit():
+        migration_percentage = "0"
+    migration_percentage = int(migration_percentage)
 
-    headers = dict(request.headers)
-    headers.pop("host", None)
-    headers.pop("content-length", None)
-    headers.pop("transfer-encoding", None)
+    select_upstream = monolith_url  # по умолчанию — монолит
 
-    async with httpx.AsyncClient() as client:
-        try:
-            body = await request.body() if request.method in ("POST", "PUT", "PATCH") else b""
-            resp = await client.request(
-                method=request.method,
-                url=url,
-                headers=headers,
-                content=body,
-                follow_redirects=True
-            )
+    if gradual_migration:
+        if random.randint(1, 100) <= migration_percentage:
+            select_upstream = service_url  # микросервис
 
-            # Удаляем конфликтующие заголовки перед отправкой клиенту
-            out_headers = dict(resp.headers)
-            out_headers.pop("content-length", None)
-            out_headers.pop("transfer-encoding", None)
-            out_headers.pop("connection", None)  # безопасно удалить
+    # Если путь health-check и выбран монолит — используем /health
+    if path.endswith("health") and select_upstream == monolith_url:
+        request.scope["path"] = "/health"
 
-            return Response(
-                content=resp.content,
-                status_code=resp.status_code,
-                headers=out_headers,
-                media_type=resp.headers.get("content-type")
-            )
-        except httpx.RequestError as e:
-            logger.error(f"Upstream request failed: {e}")
-            raise HTTPException(status_code=502, detail="Upstream service unavailable")
+    return await httpx_request_to_target(request, select_upstream)
 
-# Все остальные запросы — в монолит
-@app.api_route("/{full_path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"])
-async def proxy_all(full_path: str, request: Request):
-    original_path = f"/{full_path}"
-    url = f"{MONOLITH_URL}{original_path}"
-
-    query_string = request.url.query
-    if query_string:
-        url += f"?{query_string}"
-
-    logger.info(f"[PROXY] Routing {request.method} {original_path} → monolith")
-
-    headers = dict(request.headers)
-    headers.pop("host", None)
-    headers.pop("content-length", None)
-    headers.pop("transfer-encoding", None)
-
-    async with httpx.AsyncClient() as client:
-        try:
-            body = await request.body() if request.method in ("POST", "PUT", "PATCH") else b""
-            resp = await client.request(
-                method=request.method,
-                url=url,
-                headers=headers,
-                content=body,
-                follow_redirects=True
-            )
-
-            out_headers = dict(resp.headers)
-            out_headers.pop("content-length", None)
-            out_headers.pop("transfer-encoding", None)
-            out_headers.pop("connection", None)
-
-            return Response(
-                content=resp.content,
-                status_code=resp.status_code,
-                headers=out_headers,
-                media_type=resp.headers.get("content-type")
-            )
-        except httpx.RequestError as e:
-            logger.error(f"Upstream request failed: {e}")
-            raise HTTPException(status_code=502, detail="Upstream service unavailable")
-
-if __name__ == "__main__":
-    import uvicorn
-    port = int(os.getenv("PORT", "8000"))
-    logger.info(f"✅ Proxy service started on port {port}")
-    uvicorn.run(app, host="0.0.0.0", port=port)
+@app.api_route("/health", methods=["GET"])
+def health():
+    return JSONResponse(status_code=200, content={"status": True})
