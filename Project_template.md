@@ -1,60 +1,84 @@
 ## Изучите [README.md](.\README.md) файл и структуру проекта.
 
-# Задание 1
+### Задание 1: Проектирование архитектуры
 
-1. Спроектируйте to be архитектуру КиноБездны, разделив всю систему на отдельные домены и организовав интеграционное взаимодействие и единую точку вызова сервисов.
-Результат представьте в виде контейнерной диаграммы в нотации С4.
-Добавьте ссылку на файл в этот шаблон
-[ссылка на файл](ссылка)
+## 1. Идентификация доменов:
+
+На основе описания сущностей в текущей системе и функциональности, можно выделить следующие ключевые домены:
+
+*   **Пользовательский домен (User Management):** Отвечает за регистрацию, аутентификацию, профили пользователей, роли и разграничение доступа.
+*   **Платежный домен (Billing/Payment):** Обрабатывает все операции, связанные с оплатой подписки, скидками, биллингом и интеграцией с платёжными системами.
+*   **Домен подписок (Subscription):** Управляет типами подписок, статусами, правами доступа к контенту и интеграцией с системами лояльности.
+*   **Домен видео/контента (Video/Content):** Отвечает за хранение информации о доступном видео-контенте, его статусе, URL-адресах потоковой передачи и управление каталогом.
+*   **Домен метаданных (Metadata):** Этот домен уже выделен как цель для первого шага рефакторинга. Он содержит информацию о фильмах, сериалах: жанры, актёры, оценки пользователей, описания и т.д.
+*   **Домен рекомендаций (Recommendation):** Интегрируется с внешней рекомендательной системой или внутренним сервисом для предоставления персонализированных подборок.
+*   **Домен взаимодействия с пользователем (Interaction):** Обрабатывает действия пользователей, такие как оценки, добавление в избранное, создание плейлистов.
+*   **API Шлюз (API Gateway):** Единая точка входа для всех клиентских запросов. Отвечает за маршрутизацию, аутентификацию токенов, логирование, мониторинг и частичную обработку данных для конкретных клиентов (мобильные, TV, веб).
+
+
+## 2. Организация интеграционного взаимодействия:
+Для обеспечения слабой связанности между микросервисами и обработки асинхронных операций (например, обновление рекомендаций после оценки фильма), целесообразно использовать шину сообщений. В требованиях явно указано использование Kafka, которое будет реализовано как центральный компонент для асинхронного обмена событиями между сервисами.
+
+## 3. Единая точка вызова:
+API Gateway будет выполнять роль единой точки вызова. Все внешние клиенты (мобильные приложения, веб-интерфейс, приложения для Smart TV) будут взаимодействовать с внутренними микросервисами исключительно через него. Это упрощает клиентскую сторону, централизует безопасность и позволяет адаптировать ответы под конкретный тип клиента.
+
+## 4. Диаграмма C4:
+Ниже представлена текстовая концепция диаграммы.
+    Система: Кинобездна
+    Контейнеры:
+        Клиенты:
+            Мобильное приложение (Контейнер)
+            Веб-браузер (Контейнер)
+            Приложение Smart TV (Контейнер)
+    Инфраструктура:
+        Kubernetes Cluster (Контейнер, обводит следующие внутренние контейнеры)
+        API Gateway (Контейнер внутри K8s)
+        Kafka (Контейнер внутри K8s)
+        База данных PostgreSQL (Контейнер внутри K8s, возможно, несколько для разных доменов или через сервисы данных)
+        Хранилище объектов (S3/MinIO) (Контейнер внутри K8s, для видеофайлов, изображений)
+    Микросервисы (Контейнеры внутри K8s):
+        User Service
+        Billing Service
+        Subscription Service
+        Video Content Service
+        Metadata Service
+        Recommendation Service (взаимодействует с внешней системой)
+        Interaction Service
+    Внешние системы:
+        Внешняя Рекомендательная Система (Система)
+        Платёжные Системы (Система)
+        Системы Лояльности (Система)
+
+**Связи:**
+
+*   Клиенты -> API Gateway (HTTPS)
+*   API Gateway -> User Service, Video Content Service, Metadata Service, Subscription Service, Interaction Service (HTTP/gRPC)
+*   User Service -> Kafka (Producer/Consumer)
+*   Video Content Service -> Kafka, Metadata Service, Хранилище объектов
+*   Metadata Service -> Kafka, База данных
+*   Subscription Service -> Kafka, Billing Service
+*   Billing Service -> Kafka, Платёжные Системы
+*   Interaction Service -> Kafka, Metadata Service
+*   Recommendation Service -> Kafka (Consumer для событий взаимодействия), Внешняя Рекомендательная Система
+
+ [ C4_Container](https://github.com/KIProkopenko/architecture-cinemaabyss/blob/cinema/C4_Container.puml)
+
+    <img width="2423" height="1277" alt="jLTDRzj64xxhL-phosi3aNL8JpcbjeCqJOouaHEW9u6I6OMr90eavSGe2ZXstQPmKRT1Fueso0TwwP6IeqIsREKlxFwZFZDSck9wcTf02iGAEJixyypty6eOEK7KQxTA__CwZLPlpHKFegWRNgbK0kVXVDEB7lJglT0D6dudSZlHVCDlLxejfqDtoc6qrlBgbSMFoYj4khjygz9smiWDGAejqer7qNptFvFkU1qtIEIN8YzgkKA-aYFrM6" src="https://github.com/user-attachments/assets/6cc1d618-faef-4691-903a-a87cac37e88b" />
+
 
 # Задание 2
 
 ### 1. Proxy
-Команда КиноБездны уже выделила сервис метаданных о фильмах movies и вам необходимо реализовать бесшовный переход с применением паттерна Strangler Fig в части реализации прокси-сервиса (API Gateway), с помощью которого можно будет постепенно переключать траффик, используя фиче-флаг.
 
-
-Реализуйте сервис на любом языке программирования в ./src/microservices/proxy.
-Конфигурация для запуска сервиса через docker-compose уже добавлена
-```yaml
-  proxy-service:
-    build:
-      context: ./src/microservices/proxy
-      dockerfile: Dockerfile
-    container_name: cinemaabyss-proxy-service
-    depends_on:
-      - monolith
-      - movies-service
-      - events-service
-    ports:
-      - "8000:8000"
-    environment:
-      PORT: 8000
-      MONOLITH_URL: http://monolith:8080
-      #монолит
-      MOVIES_SERVICE_URL: http://movies-service:8081 #сервис movies
-      EVENTS_SERVICE_URL: http://events-service:8082 
-      GRADUAL_MIGRATION: "true" # вкл/выкл простого фиче-флага
-      MOVIES_MIGRATION_PERCENT: "50" # процент миграции
-    networks:
-      - cinemaabyss-network
-```
-
-- После реализации запустите postman тесты - они все должны быть зеленые (кроме events).
-- Отправьте запросы к API Gateway:
-   ```bash
-   curl http://localhost:8000/api/movies
-   ```
-- Протестируйте постепенный переход, изменив переменную окружения MOVIES_MIGRATION_PERCENT в файле docker-compose.yml.
-
+![alt text](image.png)
+![alt text](<Снимок экрана от 2026-04-13 15-55-09.png>)
 
 ### 2. Kafka
- Вам как архитектуру нужно также проверить гипотезу насколько просто реализовать применение Kafka в данной архитектуре.
+<img width="1764" height="391" alt="Снимок экрана от 2026-04-20 12-35-31" src="https://github.com/user-attachments/assets/bf69e76d-299f-4d49-9396-b3a23eba8879" />
 
-Для этого нужно сделать MVP сервис events, который будет при вызове API создавать и сам же читать сообщения в топике Kafka.
+<img width="1597" height="208" alt="Снимок экрана от 2026-04-20 12-30-29" src="https://github.com/user-attachments/assets/6287b59e-9cb2-4bba-bd95-29605e5bdbbb" />
 
-    - Разработайте сервис на любом языке программирования с consumer'ами и producer'ами.
-    - Реализуйте простой API, при вызове которого будут создаваться события User/Payment/Movie и обрабатываться внутри сервиса с записью в лог
-    - Добавьте в docker-compose новый сервис, kafka там уже есть
+
 
 Необходимые тесты для проверки этого API вызываются при запуске npm run test:local из папки tests/postman 
 Приложите скриншот тестов и скриншот состояния топиков Kafka из UI http://localhost:8090 
@@ -68,211 +92,21 @@
 
 
 ### CI/CD
+<img width="874" height="101" alt="image" src="https://github.com/user-attachments/assets/f50c479a-fbad-4747-878b-99cf8fd3a580" />
 
- В папке .github/worflows доработайте деплой новых сервисов proxy и events в docker-build-push.yml , чтобы api-tests при сборке отрабатывали корректно при отправке коммита в ваш репозиторий.
-
-Нужно доработать 
-```yaml
-on:
-  push:
-    branches: [ main ]
-    paths:
-      - 'src/**'
-      - '.github/workflows/docker-build-push.yml'
-  release:
-    types: [published]
-```
-и добавить необходимые шаги в блок
-```yaml
-jobs:
-  build-and-push:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-
-      - name: Log in to the Container registry
-        uses: docker/login-action@v2
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-```
-Как только сборка отработает и в github registry появятся ваши образы, можно переходить к блоку настройки Kubernetes
-Успешным результатом данного шага является "зеленая" сборка и "зеленые" тесты
 
 
 ### Proxy в Kubernetes
 
-#### Шаг 1
-Для деплоя в kubernetes необходимо залогиниться в docker registry Github'а.
-1. Создайте Personal Access Token (PAT) https://github.com/settings/tokens . Создавайте class с правом read:packages
-2. В src/kubernetes/*.yaml (event-service, monolith, movies-service и proxy-service)  отредактируйте путь до ваших образов 
-```bash
- spec:
-      containers:
-      - name: events-service
-        image: ghcr.io/ваш логин/имя репозитория/events-service:latest
-```
-3. Добавьте в секрет src/kubernetes/dockerconfigsecret.yaml в поле
-```bash
- .dockerconfigjson: значение в base64 файла ~/.docker/config.json
-```
+<img width="904" height="641" alt="Снимок экрана от 2026-04-19 20-21-59" src="https://github.com/user-attachments/assets/3e8c879b-fee9-497b-ac6d-25a8bd26f37b" />
 
-4. Если в ~/.docker/config.json нет значения для аутентификации
-```json
-{
-        "auths": {
-                "ghcr.io": {
-                       тут пусто
-                }
-        }
-}
-```
-то выполните 
-
-и добавьте
-
-```json 
- "auth": "имя пользователя:токен в base64"
-```
-
-Чтобы получить значение в base64 можно выполнить команду
-```bash
- echo -n ваш_логин:ваш_токен | base64
-```
-
-После заполнения config.json, также прогоните содержимое через base64
-
-```bash
-cat .docker/config.json | base64
-```
-
-и полученное значение добавляем в
-
-```bash
- .dockerconfigjson: значение в base64 файла ~/.docker/config.json
-```
-
-#### Шаг 2
-
-  Доработайте src/kubernetes/event-service.yaml и src/kubernetes/proxy-service.yaml
-
-  - Необходимо создать Deployment и Service 
-  - Доработайте ingress.yaml, чтобы можно было с помощью тестов проверить создание событий
-  - Выполните дальшейшие шаги для поднятия кластера:
-
-  1. Создайте namespace:
-  ```bash
-  kubectl apply -f src/kubernetes/namespace.yaml
-  ```
-  2. Создайте секреты и переменные
-  ```bash
-  kubectl apply -f src/kubernetes/configmap.yaml
-  kubectl apply -f src/kubernetes/secret.yaml
-  kubectl apply -f src/kubernetes/dockerconfigsecret.yaml
-  kubectl apply -f src/kubernetes/postgres-init-configmap.yaml
-  ```
-
-  3. Разверните базу данных:
-  ```bash
-  kubectl apply -f src/kubernetes/postgres.yaml
-  ```
-
-  На этом этапе если вызвать команду
-  ```bash
-  kubectl -n cinemaabyss get pod
-  ```
-  Вы увидите
-
-  NAME         READY   STATUS    
-  postgres-0   1/1     Running   
-
-  4. Разверните Kafka:
-  ```bash
-  kubectl apply -f src/kubernetes/kafka/kafka.yaml
-  ```
-
-  Проверьте, теперь должно быть запущено 3 пода, если что-то не так, то посмотрите логи
-  ```bash
-  kubectl -n cinemaabyss logs имя_пода (например - kafka-0)
-  ```
-
-  5. Разверните монолит:
-  ```bash
-  kubectl apply -f src/kubernetes/monolith.yaml
-  ```
-  6. Разверните микросервисы:
-  ```bash
-  kubectl apply -f src/kubernetes/movies-service.yaml
-  kubectl apply -f src/kubernetes/events-service.yaml
-  ```
-  7. Разверните прокси-сервис:
-  ```bash
-  kubectl apply -f src/kubernetes/proxy-service.yaml
-  ```
-
-  После запуска и поднятия подов вывод команды 
-  ```bash
-  kubectl -n cinemaabyss get pod
-  ```
-
-  Будет наподобие такого
-
-```bash
-  NAME                              READY   STATUS    
-
-  events-service-7587c6dfd5-6whzx   1/1     Running  
-
-  kafka-0                           1/1     Running   
-
-  monolith-8476598495-wmtmw         1/1     Running  
-
-  movies-service-6d5697c584-4qfqs   1/1     Running  
-
-  postgres-0                        1/1     Running  
-
-  proxy-service-577d6c549b-6qfcv    1/1     Running  
-
-  zookeeper-0                       1/1     Running 
-```
-
-  8. Добавим ingress
-
-  - добавьте аддон
-  ```bash
-  minikube addons enable ingress
-  ```
-  ```bash
-  kubectl apply -f src/kubernetes/ingress.yaml
-  ```
-  9. Добавьте в /etc/hosts
-  127.0.0.1 cinemaabyss.example.com
-
-  10. Вызовите
-  ```bash
-  minikube tunnel
-  ```
-  11. Вызовите https://cinemaabyss.example.com/api/movies
-  Вы должны увидеть вывод списка фильмов
-  Можно поэкспериментировать со значением   MOVIES_MIGRATION_PERCENT в src/kubernetes/configmap.yaml и убедится, что вызовы movies уходят полностью в новый сервис
-
-  12. Запустите тесты из папки tests/postman
-  ```bash
-   npm run test:kubernetes
-  ```
-  Часть тестов с health-чек упадет, но создание событий отработает.
-  Откройте логи event-service и сделайте скриншот обработки событий
 
 #### Шаг 3
+<img width="836" height="568" alt="image" src="https://github.com/user-attachments/assets/12741a93-23a4-44c6-889a-3d946f298069" />
+
+<img width="836" height="568" alt="image" src="https://github.com/user-attachments/assets/4c148768-cd33-48f1-9c4b-c681f30e88e1" />
+
+
 Добавьте сюда скриншота вывода при вызове https://cinemaabyss.example.com/api/movies и  скриншот вывода event-service после вызова тестов.
 
 
@@ -348,7 +182,12 @@ minikube tunnel
 
 Потом вызовите 
 https://cinemaabyss.example.com/api/movies
+
 и приложите скриншот развертывания helm и вывода https://cinemaabyss.example.com/api/movies
+<img width="1414" height="175" alt="Снимок экрана от 2026-04-20 13-48-54" src="https://github.com/user-attachments/assets/b627e80b-d193-4ac2-b081-5d568f5ffb63" />
+
+<img width="738" height="246" alt="Снимок экрана от 2026-04-20 15-33-23" src="https://github.com/user-attachments/assets/21baf011-3dcd-41db-9853-b0f7172cf450" />
+
 
 ## Удаляем все
 
